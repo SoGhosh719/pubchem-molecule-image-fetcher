@@ -36,7 +36,7 @@ def fetch_pubchem_image(molecule_name, structure_type):
         return None
 
     structure_code = "2d" if structure_type == "2D Structure" else "3d"
-    image_url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/{molecule_name}/PNG?record_type={structure_code}"
+    image_url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/{molecule_name}/PNG"
 
     response = requests.get(image_url)
 
@@ -85,82 +85,39 @@ if st.button("🎥 Download 3D Conformer Video"):
     else:
         st.error("❌ 3D Conformer Video Not Available for this Molecule.")
 
-# 📌 Instructions Section
-st.subheader("📌 How to Use:")
-st.markdown(
-    """
-    1️⃣ **Fetch a molecule image**: Enter a name & click "Fetch Image".
-    2️⃣ **Upload multiple images**: Select PNG, JPG, or JPEG files.
-    3️⃣ **Ensure correct order**: Rename images (`1.png`, `2.png`, etc.).
-    4️⃣ **Set FPS (Frames Per Second)**: Adjust in the sidebar.
-    5️⃣ **Click 'Create Video & GIF'**: The app will generate both formats.
-    6️⃣ **Download your files**: Save & share your animations.
-    """
-)
-
-# 📂 File Upload for Animation
-uploaded_files = st.file_uploader("📂 Upload Additional Images", accept_multiple_files=True, type=["png", "jpg", "jpeg"])
-
-# ✅ Function to save uploaded images
-def save_uploaded_files(uploaded_files):
-    folder_path = mkdtemp()
-    for uploaded_file in uploaded_files:
-        file_path = os.path.join(folder_path, uploaded_file.name)
-        with open(file_path, "wb") as f:
-            f.write(uploaded_file.read())
-    return folder_path
-
-# ✅ Function to create video & GIF
-def create_video_and_gif(folder_path, video_path="output_video.mp4", gif_path="output_animation.gif", fps=12):
-    images = sorted(
-        [os.path.join(folder_path, img) for img in os.listdir(folder_path) if img.endswith((".png", ".jpg", ".jpeg"))]
-    )
-
-    if not images:
-        st.error("⚠️ No valid images found. Please upload PNG, JPG, or JPEG files.")
-        return None, None
-
-    clip = ImageSequenceClip(images, fps=fps)
-
-    # Create progress bar
-    progress_bar = st.progress(0)
-    progress_text = st.empty()
-
-    # Save as video
-    st.info("🎬 Creating Video... This may take a few seconds.")
-    clip.write_videofile(video_path, codec="libx264")
-
-    # Save as GIF
-    st.info("🖼️ Creating GIF... Please wait.")
-    clip.write_gif(gif_path, fps=fps)
-
-    progress_bar.progress(100)
-    progress_text.text("✅ Video & GIF Creation Complete!")
-
-    return video_path, gif_path
-
-# 🎬 Video & GIF Creation
-if st.button("🎬 Create Video & GIF"):
-    if uploaded_files:
-        st.info("⏳ Processing images... This may take a few seconds.")
-        folder_path = save_uploaded_files(uploaded_files)
-        video_path, gif_path = create_video_and_gif(folder_path, fps=fps)
-
-        if video_path and gif_path:
-            st.success("✅ Video & GIF Created Successfully! 🎉")
-            
-            # Download Video
-            with open(video_path, "rb") as f:
-                st.download_button("⬇️ Download Video", f, file_name="molecule_animation.mp4", mime="video/mp4")
-
-            # Download GIF
-            with open(gif_path, "rb") as f:
-                st.download_button("🖼️ Download GIF", f, file_name="molecule_animation.gif", mime="image/gif")
-    else:
-        st.warning("⚠️ Please upload images first.")
-
 # 📌 Sidebar Chatbot (FAQ)
 st.sidebar.subheader("💬 Ask the Chatbot")
+
+# 🔹 Complete FAQ List
+faq_data = {
+    # General Questions
+    "What does this app do?": "This app converts a series of molecule images into a smooth video or GIF.",
+    "Who can use this app?": "Anyone! Researchers, students, and professionals working with molecule animations.",
+    "Is this app free to use?": "Yes! It is completely free to use.",
+    "Can I use this app on mobile devices?": "Yes, but for better experience, use it on a desktop or tablet.",
+
+    # File Upload Questions
+    "What file types are supported for uploading?": "PNG, JPG, and JPEG formats are supported.",
+    "How many images can I upload at once?": "There is no strict limit, but too many images may slow down processing.",
+    "Can I upload images in any order?": "The app sorts images alphabetically, so rename them (1.png, 2.png, etc.).",
+    
+    # Video & GIF Creation Questions
+    "How does this app convert images into a video?": "It stitches your images together using MoviePy.",
+    "How long does it take to create a video?": "Processing time depends on the number of images and FPS settings.",
+    "What FPS should I choose?": "12-24 FPS is ideal for smooth animations.",
+    "What is the difference between a video and a GIF?": "Videos are MP4 format with better quality, while GIFs are more compressed.",
+    "Can I create both a video and a GIF at the same time?": "Yes, the app generates both simultaneously.",
+
+    # Download & Storage Questions
+    "How do I download my video or GIF?": "Click the download button after processing is complete.",
+    "Where is my downloaded file saved?": "It is saved in your default 'Downloads' folder.",
+    "Will my uploaded images be stored on the server?": "No, uploaded images are processed temporarily and not stored.",
+
+    # Troubleshooting Questions
+    "Why is my video not generating?": "Check if you uploaded images and selected FPS properly.",
+    "Why does my video appear blurry?": "Use high-quality images for the best results.",
+    "Why is the animation too fast or too slow?": "Adjust the FPS settings in the sidebar.",
+}
 
 # 🔹 Function to find the best matching question
 def get_best_match(user_question):
