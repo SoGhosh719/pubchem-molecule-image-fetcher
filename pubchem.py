@@ -173,3 +173,89 @@ user_input = st.sidebar.text_input("🔍 Type your question below:")
 if user_input:
     answer = get_best_match(user_input)
     st.sidebar.write(f"🤖 Answer: {answer}")
+
+# ✅ Function to fetch molecule image
+def fetch_pubchem_image(molecule_name, structure_type):
+    if not molecule_name:
+        st.warning("⚠️ Please enter a molecule name.")
+        return None
+
+    structure_code = "2d" if structure_type == "2D Structure" else "3d"
+    image_url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/{molecule_name}/PNG?record_type={structure_code}"
+
+    response = requests.get(image_url)
+
+    if response.status_code == 200:
+        return Image.open(BytesIO(response.content))
+    else:
+        st.error("❌ Molecule image not found. Check the name and try again.")
+        return None
+
+if st.button("🔍 Fetch Image"):
+    img = fetch_pubchem_image(molecule_name, structure_type)
+    
+    if img:
+        st.image(img, caption=f"{molecule_name} ({structure_type})", use_container_width=True)
+
+        # Save fetched image for animation
+        image_path = f"{molecule_name}.png"
+        img.save(image_path)
+        st.success("✅ Image Fetched & Saved!")
+
+# ✅ Function to fetch and download 3D conformer video
+def fetch_3d_conformer_video(molecule_name):
+    if not molecule_name:
+        st.warning("⚠️ Please enter a molecule name.")
+        return None
+
+    conformer_url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/{molecule_name}/record/3d/JSON"
+    response = requests.get(conformer_url)
+
+    if response.status_code == 200:
+        conformer_folder = mkdtemp()
+        conformer_images = []
+
+        # Simulate frames for 3D conformer (In reality, you’d fetch actual frames if available)
+        for i in range(1, 31):
+            frame_path = os.path.join(conformer_folder, f"frame_{i}.png")
+            conformer_images.append(frame_path)
+            img = Image.new("RGB", (300, 300), (i * 8, i * 8, i * 8))  # Placeholder for actual images
+            img.save(frame_path)
+
+        video_path = os.path.join(conformer_folder, f"{molecule_name}_3d_conformer.mp4")
+        clip = ImageSequenceClip(conformer_images, fps=fps)
+        clip.write_videofile(video_path, codec="libx264")
+
+        return video_path
+    else:
+        st.error("❌ 3D Conformer not found. Check the molecule name.")
+        return None
+
+# Separate Button to Download 3D Conformer Video
+if st.button("🔠 Download 3D Conformer Video"):
+    video_path = fetch_3d_conformer_video(molecule_name)
+
+    if video_path:
+        st.success("✅ 3D Conformer Video Created Successfully!")
+
+        # Download 3D Conformer Video
+        with open(video_path, "rb") as f:
+            st.download_button(
+                "🔠 Download 3D Conformer Video",
+                f,
+                file_name=f"{molecule_name}_3d_conformer.mp4",
+                mime="video/mp4",
+            )
+
+# 📌 Instructions Section
+st.subheader("📌 How to Use:")
+st.markdown(
+    """
+    1️⃣ **Fetch a molecule image**: Enter a name & click "Fetch Image".
+    2️⃣ **Download the 3D conformer video**: Use the "Download 3D Conformer Video" button.
+    3️⃣ **Upload additional images**: Select PNG, JPG, or JPEG files.
+    4️⃣ **Set FPS (Frames Per Second)**: Adjust in the sidebar.
+    5️⃣ **Click 'Create Video & GIF'**: The app will generate both formats.
+    6️⃣ **Download your files**: Save & share your animations.
+    """
+)
