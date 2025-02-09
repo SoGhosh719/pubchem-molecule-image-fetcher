@@ -57,24 +57,25 @@ if st.button("🔍 Fetch Image"):
         img.save(image_path)
         st.success("✅ Image Fetched & Saved!")
 
-# ✅ Function to fetch 3D conformer animation
+# ✅ Function to fetch and download a 3D conformer video
 def fetch_3d_conformer_video(molecule_name):
     if not molecule_name:
         return None
     
+    # PubChem 3D Conformer animation API
     video_url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/{molecule_name}/record/SDF?record_type=3d"
 
     response = requests.get(video_url)
 
     if response.status_code == 200:
-        video_path = f"{molecule_name}_3d.mp4"
+        video_path = f"{molecule_name}_3d_conformer.mp4"
         with open(video_path, "wb") as f:
             f.write(response.content)
         return video_path
     else:
         return None
 
-# ✅ Button for Downloading 3D Conformer Animation
+# ✅ Separate Button for Downloading 3D Conformer Animation
 if st.button("🎥 Download 3D Conformer Video"):
     video_path = fetch_3d_conformer_video(molecule_name)
 
