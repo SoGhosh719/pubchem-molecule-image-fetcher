@@ -44,7 +44,7 @@ if st.button("🔍 Fetch Image"):
 
         if response.status_code == 200:
             img = Image.open(BytesIO(response.content))
-            st.image(img, caption=f"{molecule_name} Structure", use_column_width=True)
+            st.image(img, caption=f"{molecule_name} ({structure_type})", use_container_width=True)
 
             # Save fetched image for animation
             image_path = f"{molecule_name}.png"
