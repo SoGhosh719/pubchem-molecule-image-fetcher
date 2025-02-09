@@ -7,7 +7,7 @@ from moviepy.video.io.ImageSequenceClip import ImageSequenceClip
 from moviepy.editor import VideoFileClip
 from tempfile import mkdtemp
 import time
-from rapidfuzz import process  # Using RapidFuzz instead of FuzzyWuzzy for better performance
+from rapidfuzz import process  # Using RapidFuzz for efficient fuzzy matching
 
 # 🎨 Streamlit Page Config
 st.set_page_config(page_title="Molecule Animation Creator", page_icon="🔬")
@@ -30,48 +30,60 @@ st.subheader("🔎 Fetch Molecule Image from PubChem")
 molecule_name = st.text_input("Enter Molecule Name (e.g., Water, Glucose, Benzene):")
 structure_type = st.radio("🧬 Select Structure Type:", ["2D Structure", "3D Structure"])
 
-# Function to fetch molecule image
+# ✅ Function to check if the molecule exists in PubChem
+def check_molecule_exists(molecule_name):
+    url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/{molecule_name}/cids/JSON"
+    response = requests.get(url)
+    return response.status_code == 200 and "IdentifierList" in response.json()
+
+# ✅ Function to fetch molecule image or 3D conformer
 def fetch_pubchem_image(molecule_name, structure_type):
     if not molecule_name:
         st.warning("⚠️ Please enter a molecule name.")
-        return None
+        return None, None
 
-    # Determine image type based on user selection
+    if not check_molecule_exists(molecule_name):
+        st.error("❌ Molecule not found on PubChem. Please check the spelling or try another name.")
+        return None, None
+
     if structure_type == "2D Structure":
         image_url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/{molecule_name}/PNG"
-    else:  # Fetch 3D Conformer GIF
-        image_url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/{molecule_name}/record/3D/GIF"
+        response = requests.get(image_url)
+        
+        if response.status_code == 200:
+            return Image.open(BytesIO(response.content)), "image"
+        else:
+            return None, None
+    else:  # 3D Structure
+        gif_url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/{molecule_name}/record/3D/GIF"
+        response = requests.get(gif_url)
 
-    response = requests.get(image_url)
-
-    if response.status_code == 200:
-        return response.content
-    else:
-        st.error("❌ Molecule image not found. Check the name and try again.")
-        return None
+        if response.status_code == 200:
+            return response.content, "gif"
+        else:
+            return None, None
 
 if st.button("🔍 Fetch Image"):
-    img_data = fetch_pubchem_image(molecule_name, structure_type)
+    image_data, file_type = fetch_pubchem_image(molecule_name, structure_type)
 
-    if img_data:
-        if structure_type == "2D Structure":
-            img = Image.open(BytesIO(img_data))
-            st.image(img, caption=f"{molecule_name} ({structure_type})", use_container_width=True)
-
+    if image_data:
+        if file_type == "image":
+            st.image(image_data, caption=f"{molecule_name} ({structure_type})", use_container_width=True)
+            
             # Save fetched image for animation
             image_path = f"{molecule_name}.png"
-            img.save(image_path)
+            image_data.save(image_path)
             st.success("✅ Image Fetched & Saved!")
         
-        else:  # Process 3D Conformer GIF
+        elif file_type == "gif":  # Convert 3D conformer GIF to MP4
             gif_path = f"{molecule_name}_3D.gif"
             with open(gif_path, "wb") as f:
-                f.write(img_data)
+                f.write(image_data)
 
             st.image(gif_path, caption=f"3D Conformer of {molecule_name}", use_column_width=True)
             st.success("✅ 3D Conformer GIF Downloaded!")
 
-            # Convert GIF to MP4 Video
+            # Convert GIF to MP4
             mp4_path = gif_path.replace(".gif", ".mp4")
             clip = VideoFileClip(gif_path)
             clip.write_videofile(mp4_path, codec="libx264")
@@ -96,16 +108,7 @@ st.markdown(
 # 📂 File Upload for Animation
 uploaded_files = st.file_uploader("📂 Upload Additional Images", accept_multiple_files=True, type=["png", "jpg", "jpeg"])
 
-# Function to save uploaded images
-def save_uploaded_files(uploaded_files):
-    folder_path = mkdtemp()
-    for uploaded_file in uploaded_files:
-        file_path = os.path.join(folder_path, uploaded_file.name)
-        with open(file_path, "wb") as f:
-            f.write(uploaded_file.read())
-    return folder_path
-
-# Function to create both video & GIF using MoviePy
+# ✅ Function to create video & GIF
 def create_video_and_gif(folder_path, video_path="output_video.mp4", gif_path="output_animation.gif", fps=12):
     images = sorted(
         [os.path.join(folder_path, img) for img in os.listdir(folder_path) if img.endswith((".png", ".jpg", ".jpeg"))]
@@ -116,8 +119,8 @@ def create_video_and_gif(folder_path, video_path="output_video.mp4", gif_path="o
         return None, None
 
     clip = ImageSequenceClip(images, fps=fps)
-
-    # Create a Streamlit progress bar
+    
+    # Create progress bar
     progress_bar = st.progress(0)
     progress_text = st.empty()
 
@@ -125,17 +128,10 @@ def create_video_and_gif(folder_path, video_path="output_video.mp4", gif_path="o
     st.info("🎬 Creating Video... This may take a few seconds.")
     clip.write_videofile(video_path, codec="libx264")
 
-    # Manually update progress
-    for percent_complete in range(0, 101, 20):
-        progress_text.text(f"Processing Video... {percent_complete}%")
-        progress_bar.progress(percent_complete)
-        time.sleep(0.5)
-
     # Save as GIF
     st.info("🖼️ Creating GIF... Please wait.")
     clip.write_gif(gif_path, fps=fps)
 
-    # Update progress to 100%
     progress_bar.progress(100)
     progress_text.text("✅ Video & GIF Creation Complete!")
 
@@ -150,7 +146,7 @@ if st.button("🎬 Create Video & GIF"):
 
         if video_path and gif_path:
             st.success("✅ Video & GIF Created Successfully! 🎉")
-
+            
             # Download Video
             with open(video_path, "rb") as f:
                 st.download_button("⬇️ Download Video", f, file_name="molecule_animation.mp4", mime="video/mp4")
@@ -160,30 +156,3 @@ if st.button("🎬 Create Video & GIF"):
                 st.download_button("🖼️ Download GIF", f, file_name="molecule_animation.gif", mime="image/gif")
     else:
         st.warning("⚠️ Please upload images first.")
-
-# 📌 Sidebar Chatbot (FAQ)
-st.sidebar.subheader("💬 Ask the Chatbot")
-
-# 🔹 Define FAQs with variations
-faq_data = {
-    "What does this app do?": "This app converts a series of molecule images into a smooth video or GIF.",
-    "Who can use this app?": "Anyone! Researchers, students, and professionals working with molecule animations.",
-    "Is this app free to use?": "Yes! It is completely free to use.",
-}
-
-# 🔹 Function to find the best matching question
-def get_best_match(user_question):
-    best_match, confidence = process.extractOne(user_question, faq_data.keys())
-
-    if confidence > 75:  # Acceptable confidence threshold
-        return faq_data[best_match]  # Return the answer mapped to the closest question
-
-    return "🤖 Sorry, I couldn't understand your question. Try rephrasing!"
-
-# 🔹 Streamlit UI
-st.sidebar.write("Ask me anything about the Molecule Image to Video Converter!")
-user_input = st.sidebar.text_input("🔍 Type your question below:")
-
-if user_input:
-    answer = get_best_match(user_input)
-    st.sidebar.write(f"🤖 Answer: {answer}")
