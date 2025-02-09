@@ -140,14 +140,17 @@ if st.button("🎬 Create Video & GIF"):
 # 📌 Sidebar Chatbot (FAQ)
 st.sidebar.subheader("💬 Ask the Chatbot")
 
-faq_responses = {
-    # General Questions
+import streamlit as st
+from fuzzywuzzy import process
+
+# 🔹 Define FAQs with variations
+faq_data = {
     "What does this app do?": "This app converts a series of molecule images into a smooth video or GIF.",
     "Who can use this app?": "Anyone! Researchers, students, and professionals working with molecule animations.",
     "Do I need to install anything to use this app?": "No, the app runs entirely on Streamlit Cloud.",
     "Is this app free to use?": "Yes! It is completely free to use.",
     "Can I use this app on mobile devices?": "Yes, but for better experience, use it on a desktop or tablet.",
-
+    
     # File Upload Questions
     "What file types are supported for uploading?": "PNG, JPG, and JPEG formats are supported.",
     "How many images can I upload at once?": "There is no strict limit, but too many images may slow down processing.",
@@ -177,7 +180,23 @@ faq_responses = {
     "Why is the animation too fast or too slow?": "Adjust the FPS settings in the sidebar.",
 }
 
-user_query = st.sidebar.text_input("Ask a question:")
-if user_query:
-    response = faq_responses.get(user_query, "🤖 I'm not sure about that. Try asking something else!")
-    st.sidebar.write(f"🤖 Chatbot: {response}")
+# 🔹 Function to find the best matching question
+def get_best_match(user_question):
+    best_match, confidence = process.extractOne(user_question, faq_data.keys())
+
+    if confidence > 75:  # Acceptable confidence threshold
+        return faq_data[best_match]  # Return the answer mapped to the closest question
+
+    return "🤖 Sorry, I couldn't understand your question. Try rephrasing!"
+
+# 🔹 Streamlit UI
+st.title("💬 Molecule Animation Chatbot")
+
+st.write("Ask me anything about the Molecule Image to Video Converter!")
+
+user_input = st.text_input("🔍 Type your question below:")
+
+if user_input:
+    answer = get_best_match(user_input)
+    st.write(f"🤖 Answer: {answer}")
+
