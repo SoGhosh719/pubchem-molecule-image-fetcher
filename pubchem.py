@@ -36,6 +36,7 @@ st.markdown(
 # 📌 Molecule Image Fetching Section
 st.subheader("🔎 Fetch Molecule Image from PubChem")
 molecule_name = st.text_input("Enter Molecule Name (e.g., Water, Glucose, Benzene):")
+structure_type = st.radio("🧬 Select Structure Type:", ["2D Structure", "3D Structure"])
 
 if st.button("🔍 Fetch Image"):
     if molecule_name:
