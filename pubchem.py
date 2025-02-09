@@ -4,6 +4,7 @@ import requests
 from PIL import Image
 from io import BytesIO
 from moviepy.video.io.ImageSequenceClip import ImageSequenceClip
+from moviepy.editor import VideoFileClip
 from tempfile import mkdtemp
 import time
 from rapidfuzz import process  # Using RapidFuzz instead of FuzzyWuzzy for better performance
@@ -20,7 +21,7 @@ st.title("🔬 Molecule Image Fetcher & Animation Creator")
 st.markdown(
     """
     Convert molecule images into **videos or GIFs** and fetch **molecular structures** from **PubChem**!
-    Just enter a molecule name, fetch its image, and create animations. 🚀
+    Just enter a molecule name, fetch its image or 3D conformer, and create animations. 🚀
     """
 )
 
@@ -35,28 +36,49 @@ def fetch_pubchem_image(molecule_name, structure_type):
         st.warning("⚠️ Please enter a molecule name.")
         return None
 
-    # Map structure type to API parameter
-    structure_code = "2d" if structure_type == "2D Structure" else "3d"
-    image_url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/{molecule_name}/PNG?record_type={structure_code}"
+    # Determine image type based on user selection
+    if structure_type == "2D Structure":
+        image_url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/{molecule_name}/PNG"
+    else:  # Fetch 3D Conformer GIF
+        image_url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/{molecule_name}/record/3D/GIF"
 
     response = requests.get(image_url)
 
     if response.status_code == 200:
-        return Image.open(BytesIO(response.content))
+        return response.content
     else:
         st.error("❌ Molecule image not found. Check the name and try again.")
         return None
 
 if st.button("🔍 Fetch Image"):
-    img = fetch_pubchem_image(molecule_name, structure_type)
-    
-    if img:
-        st.image(img, caption=f"{molecule_name} ({structure_type})", use_container_width=True)
+    img_data = fetch_pubchem_image(molecule_name, structure_type)
 
-        # Save fetched image for animation
-        image_path = f"{molecule_name}.png"
-        img.save(image_path)
-        st.success("✅ Image Fetched & Saved!")
+    if img_data:
+        if structure_type == "2D Structure":
+            img = Image.open(BytesIO(img_data))
+            st.image(img, caption=f"{molecule_name} ({structure_type})", use_container_width=True)
+
+            # Save fetched image for animation
+            image_path = f"{molecule_name}.png"
+            img.save(image_path)
+            st.success("✅ Image Fetched & Saved!")
+        
+        else:  # Process 3D Conformer GIF
+            gif_path = f"{molecule_name}_3D.gif"
+            with open(gif_path, "wb") as f:
+                f.write(img_data)
+
+            st.image(gif_path, caption=f"3D Conformer of {molecule_name}", use_column_width=True)
+            st.success("✅ 3D Conformer GIF Downloaded!")
+
+            # Convert GIF to MP4 Video
+            mp4_path = gif_path.replace(".gif", ".mp4")
+            clip = VideoFileClip(gif_path)
+            clip.write_videofile(mp4_path, codec="libx264")
+
+            st.video(mp4_path)
+            with open(mp4_path, "rb") as f:
+                st.download_button("⬇️ Download 3D Conformer Video (MP4)", f, file_name=f"{molecule_name}_3D.mp4", mime="video/mp4")
 
 # 📌 Instructions Section
 st.subheader("📌 How to Use:")
@@ -147,11 +169,6 @@ faq_data = {
     "What does this app do?": "This app converts a series of molecule images into a smooth video or GIF.",
     "Who can use this app?": "Anyone! Researchers, students, and professionals working with molecule animations.",
     "Is this app free to use?": "Yes! It is completely free to use.",
-    "What file types are supported?": "PNG, JPG, and JPEG formats are supported.",
-    "How does this app convert images into a video?": "It stitches your images together using MoviePy.",
-    "What FPS should I choose?": "12-24 FPS is ideal for smooth animations.",
-    "How do I download my video or GIF?": "Click the download button after processing is complete.",
-    "Why is my video not generating?": "Check if you uploaded images and selected FPS properly.",
 }
 
 # 🔹 Function to find the best matching question
@@ -165,7 +182,6 @@ def get_best_match(user_question):
 
 # 🔹 Streamlit UI
 st.sidebar.write("Ask me anything about the Molecule Image to Video Converter!")
-
 user_input = st.sidebar.text_input("🔍 Type your question below:")
 
 if user_input:
