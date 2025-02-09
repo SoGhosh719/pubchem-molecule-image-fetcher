@@ -35,8 +35,9 @@ def fetch_pubchem_image(molecule_name, structure_type):
         st.warning("⚠️ Please enter a molecule name.")
         return None
 
+    # ✅ Correct API request for fetching images
     structure_code = "2d" if structure_type == "2D Structure" else "3d"
-    image_url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/{molecule_name}/PNG"
+    image_url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/{molecule_name}/PNG?record_type={structure_code}"
 
     response = requests.get(image_url)
 
@@ -62,13 +63,13 @@ def fetch_3d_conformer_video(molecule_name):
     if not molecule_name:
         return None
     
-    # PubChem 3D Conformer animation API
-    video_url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/{molecule_name}/record/SDF?record_type=3d"
+    # ✅ Correct API request for downloading 3D conformer animation
+    video_url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/{molecule_name}/SDF?record_type=3d"
 
     response = requests.get(video_url)
 
     if response.status_code == 200:
-        video_path = f"{molecule_name}_3d_conformer.mp4"
+        video_path = f"{molecule_name}_3d_conformer.sdf"
         with open(video_path, "wb") as f:
             f.write(response.content)
         return video_path
@@ -82,7 +83,7 @@ if st.button("🎥 Download 3D Conformer Video"):
     if video_path:
         st.success("✅ 3D Conformer Video Downloaded Successfully!")
         with open(video_path, "rb") as f:
-            st.download_button("⬇️ Download 3D Conformer Video", f, file_name=f"{molecule_name}_3D_Conformer.mp4", mime="video/mp4")
+            st.download_button("⬇️ Download 3D Conformer File (SDF)", f, file_name=f"{molecule_name}_3D_Conformer.sdf", mime="chemical/x-mdl-sdfile")
     else:
         st.error("❌ 3D Conformer Video Not Available for this Molecule.")
 
@@ -141,4 +142,3 @@ user_input = st.sidebar.text_input("🔍 Type your question below:")
 if user_input:
     answer = get_best_match(user_input)
     st.sidebar.write(f"🤖 Answer: {answer}")
-
