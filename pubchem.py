@@ -122,10 +122,14 @@ faq_data = {
 
 # 🔹 Function to find the best matching question
 def get_best_match(user_question):
-    best_match, confidence = process.extractOne(user_question, faq_data.keys())
+    match = process.extractOne(user_question, faq_data.keys())  # Ensure proper tuple handling
 
-    if confidence > 75:  # Acceptable confidence threshold
-        return faq_data[best_match]  # Return the answer mapped to the closest question
+    if match:  # Ensure a valid match exists
+        best_match = match[0]  # Extract the best-matched question
+        confidence = match[1]  # Extract the confidence score
+
+        if confidence > 75:  # Acceptable confidence threshold
+            return faq_data[best_match]  # Return the answer mapped to the closest question
 
     return "🤖 Sorry, I couldn't understand your question. Try rephrasing!"
 
@@ -137,3 +141,4 @@ user_input = st.sidebar.text_input("🔍 Type your question below:")
 if user_input:
     answer = get_best_match(user_input)
     st.sidebar.write(f"🤖 Answer: {answer}")
+
