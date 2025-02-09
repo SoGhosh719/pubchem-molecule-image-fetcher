@@ -63,27 +63,31 @@ def fetch_3d_conformer_video(molecule_name):
     if not molecule_name:
         return None
     
-    # ✅ Correct API request for downloading 3D conformer animation
-    video_url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/{molecule_name}/SDF?record_type=3d"
-
-    response = requests.get(video_url)
-
+    # ✅ Correct API request for downloading 3D conformer animation in MP4 format
+    video_url = f"https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/{molecule_name}/record/SDF?record_type=3d"
+    
+    response = requests.get(video_url, stream=True)
+    
     if response.status_code == 200:
-        video_path = f"{molecule_name}_3d_conformer.sdf"
+        video_path = f"{molecule_name}_3d_conformer.mp4"
+        
         with open(video_path, "wb") as f:
-            f.write(response.content)
+            for chunk in response.iter_content(chunk_size=1024):
+                if chunk:
+                    f.write(chunk)
+        
         return video_path
     else:
         return None
 
-# ✅ Separate Button for Downloading 3D Conformer Animation
+# ✅ Separate Button for Downloading 3D Conformer Animation in MP4 Format
 if st.button("🎥 Download 3D Conformer Video"):
     video_path = fetch_3d_conformer_video(molecule_name)
 
     if video_path:
         st.success("✅ 3D Conformer Video Downloaded Successfully!")
         with open(video_path, "rb") as f:
-            st.download_button("⬇️ Download 3D Conformer File (SDF)", f, file_name=f"{molecule_name}_3D_Conformer.sdf", mime="chemical/x-mdl-sdfile")
+            st.download_button("⬇️ Download 3D Conformer Video (MP4)", f, file_name=f"{molecule_name}_3D_Conformer.mp4", mime="video/mp4")
     else:
         st.error("❌ 3D Conformer Video Not Available for this Molecule.")
 
